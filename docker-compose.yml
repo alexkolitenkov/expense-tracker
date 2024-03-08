@@ -1,0 +1,24 @@
+name: my-project
+
+services:
+  db:
+    image: mysql:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: memes
+    container_name: audiomemes-tg-bot-db
+    volumes:
+      - db:/var/lib/mysql
+
+  backend:
+    image: registry.gitlab.com/alexkolitenkov/tg_bot:main
+    restart: always
+    container_name: audiomemes-tg-bot-backend
+
+volumes: 
+  db : {}
+
+networks:
+  default:
+    name: audiomemes-tg-bot

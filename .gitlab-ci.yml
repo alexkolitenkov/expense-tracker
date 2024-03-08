@@ -1,0 +1,95 @@
+image: docker
+
+variables:
+  IMAGE_NAME: registry.gitlab.com/alexkolitenkov/tg_bot
+  IMAGE_TAG: latest
+
+services:
+  - name: docker:20-dind
+
+stages:
+  - build
+  - tests
+  - deploy
+
+
+ava:
+  stage: tests
+  before_script:
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker compose -f docker-compose.test.yml down --remove-orphans
+    - docker compose pull 
+    - docker compose -f docker-compose.test.yml up -d
+    - sleep 20
+    - docker run --network memes --env-file .env.defaults --rm $IMAGE_NAME:$CI_COMMIT_REF_NAME sh -c 'npm run migration:test && npm run test:ava'
+  only:
+    - main
+    - dev
+    - /^release\/.*$/
+    - tags
+    - merge_requests
+    - dev
+
+
+lint:
+  stage: tests
+  image: node:18-alpine
+  script:
+    - npm i
+    - npm run test:lint
+  only:
+    - main
+    - dev
+    - /^release\/.*$/
+    - tags
+    - merge_requests
+    - dev
+
+
+build:
+  stage: build
+  before_script:
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build --no-cache -t $IMAGE_NAME:$CI_COMMIT_REF_NAME .
+    - docker push $IMAGE_NAME:$CI_COMMIT_REF_NAME
+  only:
+    - main
+    - /^release\/.*$/
+    - tags
+    - dev
+    - merge_requests
+
+
+.deploy:
+  image : docker:20.10.21
+  stage: deploy
+  variables:
+      DEPLOY_SERVER : $SERVER_NAME
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - mkdir -p ~/.ssh
+    - echo "$SSH_KEY" > ~/.ssh/id_rsa
+    - chmod 700 ~/.ssh/id_rsa
+    - echo $DEPLOY_SERVER
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+  script:
+    - ssh -o StrictHostKeyChecking=no $DEPLOY_SERVER "
+      sudo docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
+      cd ~/audiomemes-tg-bot/ &&
+      sudo docker compose -p my-project down &&
+      sudo docker compose pull &&
+      sudo docker compose -p my-project up -d &&
+      echo "here" &&
+      sleep 20 &&
+      sudo docker exec audiomemes-tg-bot-backend npm run migration:db "
+deploy_demo:
+  extends: .deploy
+  variables:
+    DEPLOY_SERVER : $SERVER_NAME
+  only:
+    - dev
+    - main
+

@@ -1,0 +1,12 @@
+services:
+  test-db:
+    image: mysql:latest
+    restart: always
+    environment:
+        MYSQL_ROOT_PASSWORD: password
+        MYSQL_DATABASE: memes-test
+    ports:
+        - 3306:3306
+networks:
+  default:
+    name: memes
