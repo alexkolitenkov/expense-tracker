@@ -56,5 +56,5 @@ SECRET=
 
 ## Demo
 
-https://github.com/user-attachments/assets/8e6b220e-7bc3-48b4-afde-3a9fec11596a
+https://github.com/user-attachments/assets/c3b16f60-5569-48b1-9361-395151756e53
 
